@@ -10,12 +10,16 @@ import os
 import sys
 
 # constants declaration
+import pygame
 
 WIDTH = 1200  # width of the screen
 HEIGHT = 1000  # height of the screen
+SCREEN_RECT = pygame.Rect(0, 0, WIDTH, HEIGHT)
+BG_COlOR = '#111111'
 PREVIEW_SCALE = 0.2
 VOLUME = 100  # sound volume
 FPS = 60
+MAX_SCENES = 10  # max number of scenes that can be loaded simultaneously
 ASSETS = 'assets'
 
 # for handling global objects

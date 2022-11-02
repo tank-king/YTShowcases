@@ -1,15 +1,12 @@
-import sys
+from typing import Optional
 
 import pygame
 
-from utils import *
 from config import *
-from transition import TransitionManager
 from objects import ObjectManager
 from subtitles import SubtitleManager
-import os
-
-from typing import Optional
+from transition import TransitionManager
+from utils import *
 
 
 class Scene:
@@ -17,7 +14,7 @@ class Scene:
     Base signature for all menus
     """
 
-    def __init__(self, manager: Optional['SceneManager'], name='menu'):
+    def __init__(self, manager: 'SceneManager', name='menu'):
         self.manager = manager
         self.name = name
 
@@ -28,23 +25,40 @@ class Scene:
         pass
 
     def draw(self, surf: pygame.Surface):
-        surf.fill('#111111')
+        surf.fill(BG_COlOR)
         surf.blit(text(self.name), (50, 50))
 
 
+class UnloadedScene(Scene):
+    def draw(self, surf: pygame.Surface):
+        surf.fill(BG_COlOR)
+        t = text('Unloaded Scene', 100)
+        surf.blit(t, t.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+
+
 class Preview(Scene):
-    def __init__(self, menu: Scene, pos):
-        super().__init__(menu.manager, menu.name)
+    def __init__(self, manager, menu, name='name', pos=(0, 0)):
+        super().__init__(manager, menu)
         self.surf = pygame.Surface((WIDTH, HEIGHT))
         self.preview_surf = pygame.Surface((round(WIDTH * PREVIEW_SCALE), round(HEIGHT * PREVIEW_SCALE)))
-        self.menu = menu
+        self.manager.load_menu(menu)
+        self.menu = self.manager.get_menu(menu)
         self.pos = pos
         self.cached_preview: Optional[pygame.Surface] = None
         self.active = False
+        self.preview_name = name
 
     @property
     def rect(self):
         return self.preview_surf.get_rect().move(*self.pos)
+
+    def unload(self):
+        if self.name in self.manager.menus:
+            self.manager.menus.pop(self.name)
+            self.menu = self.manager.get_menu(self.name)
+
+    def move(self, dx, dy):
+        self.pos = self.pos[0] + dx, self.pos[1] + dy
 
     def update(self, events: list[pygame.event.Event]):
         self.active = False
@@ -70,23 +84,37 @@ class Preview(Scene):
                 self.menu.draw(self.surf)
                 self.cached_preview = pygame.transform.smoothscale(self.surf, self.preview_surf.get_size(), self.preview_surf)
                 surf.blit(self.cached_preview, self.pos)
-        pygame.draw.rect(surf, 'white' if not self.active else 'blue', self.rect, 5)
+        t = text(self.preview_name, 30)
+        rect = self.rect
+        surf.blit(t, t.get_rect(centerx=rect.centerx, centery=rect.bottom + 30))
+        pygame.draw.rect(surf, 'white' if not self.active else 'blue', rect, 5)
 
 
 class Home(Scene):
     def __init__(self, manager, name):
         super().__init__(manager, name)
-        self.manager.load_menu('showcases.pattern1.main')
+        # self.manager.load_menu('showcases.pattern1.main')
         # self.switch_mode('showcases.pattern1.main')
-        self.preview = Preview(self.manager.menus['showcases.pattern1.main'], (150, 250))
+        self.previews = [Preview(manager, 'showcases.pattern1.main', pos=(150, 250))]
 
     def update(self, events: list[pygame.event.Event]):
         super().update(events)
-        self.preview.update(events)
+        for i in self.previews:
+            i.update(events)
+        for e in events:
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_x:
+                for i in self.previews:
+                    i.unload()
+            if e.type == pygame.MOUSEWHEEL:
+                vel = 15
+                dx, dy = e.precise_x, e.precise_y
+                for i in self.previews:
+                    i.move(dx * vel, dy * vel)
 
     def draw(self, surf: pygame.Surface):
         super().draw(surf)
-        self.preview.draw(surf)
+        for i in self.previews:
+            i.draw(surf)
 
 
 class SceneManager:
@@ -114,6 +142,12 @@ class SceneManager:
         # self.preview = Preview(self.menus['showcases.pattern1.main'], (150, 250))
 
     # def get_all_showcases(self):
+
+    def get_menu(self, menu):
+        try:
+            return self.menus[menu]
+        except KeyError:
+            return UnloadedScene(self, 'Error')
 
     @staticmethod
     def get_path_to_menu(*args):

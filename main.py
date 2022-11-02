@@ -12,7 +12,7 @@ pygame.init()
 
 class App:
     def __init__(self):
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
         self.manager = SceneManager()
         self.clock = pygame.time.Clock()
 
